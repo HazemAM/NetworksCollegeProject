@@ -140,7 +140,7 @@ namespace HTTPServer
         /// <returns>The redirection path, empty string otherwise</returns>
         private string GetRedirectionPagePathIfExists(string relativePath)
         {
-            if(relativePath.Length > 1)
+            if(relativePath!=null && relativePath.Length>1)
                 relativePath = relativePath.Substring(1, relativePath.Length-1);
             else
                 return string.Empty;

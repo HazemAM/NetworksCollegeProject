@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
@@ -83,29 +82,32 @@ namespace HTTPServer
             try
             {
                 bool parsing = request.ParseRequest();
-                string internalURI = request.relativeURI.Substring(1,request.relativeURI.Length-1); //Delete starting '/'.
-                string redirectRelative = GetRedirectionPagePathIfExists(internalURI);
+                string redirectRelative = GetRedirectionPagePathIfExists(request.relativeURI);
 
-                if(!parsing){ //Check for bad request.
+                if(parsing){
+                    if(redirectRelative != String.Empty){ //Check for redirect.
+                        string host = request.HeaderLines["Host"].StartsWith("http://")
+                            ? request.HeaderLines["Host"]
+                            : "http://" + request.HeaderLines["Host"];
+                        redirectionPath = host + '/' + redirectRelative;
+                        status = StatusCode.Redirect;
+                        relative = Configuration.RedirectionDefaultPageName;
+                    }
+                    else
+                        relative = request.relativeURI;
+                }
+                else //Bad request.
+                {
                     status = StatusCode.BadRequest;
                     relative = Configuration.BadRequestDefaultPageName;
                 }
-                else if(redirectRelative != String.Empty){ //Check for redirect.
-                    string host = request.HeaderLines["Host"].StartsWith("http://")
-                        ? request.HeaderLines["Host"]
-                        : "http://" + request.HeaderLines["Host"];
-                    redirectionPath = host + '/' + redirectRelative;
-                    status = StatusCode.Redirect;
-                    relative = Configuration.RedirectionDefaultPageName;
-                }
-                else
-                    relative = internalURI;
 
                 //Map the relativeURI in request to get the physical path of the resource:
-                relative = relative==String.Empty ? Configuration.DefaultPageName : relative;
+                relative = relative.Length==1 && relative[0]=='/' //The home page requested.
+                    ? Configuration.DefaultPageName : relative;
                 path = Configuration.RootPath + '\\' + relative;
 
-                //Check file exists then read it:
+                //Check if file doesn't exist:
                 if(!File.Exists(@path)){
                     status = StatusCode.NotFound;
                     relative = Configuration.NotFoundDefaultPageName;
@@ -138,10 +140,13 @@ namespace HTTPServer
         /// <returns>The redirection path, empty string otherwise</returns>
         private string GetRedirectionPagePathIfExists(string relativePath)
         {
-            if (Configuration.RedirectionRules.ContainsKey(relativePath))
-            {
+            if(relativePath.Length > 1)
+                relativePath = relativePath.Substring(1, relativePath.Length-1);
+            else
+                return string.Empty;
+
+            if(Configuration.RedirectionRules.ContainsKey(relativePath))
                 return Configuration.RedirectionRules[relativePath];
-            }
 
             return string.Empty;
         }

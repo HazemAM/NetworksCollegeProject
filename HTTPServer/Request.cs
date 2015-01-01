@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace HTTPServer
 {
@@ -24,7 +22,8 @@ namespace HTTPServer
         string[] requestLines;
         RequestMethod method;     //Not used 'cause only GET requests are supported in the mean time.
         public string relativeURI;
-        Dictionary<string, string> headerLines;
+        private Dictionary<string, string> headerLines;
+        private int lastHeaderLine;
 
         public Dictionary<string, string> HeaderLines
         {
@@ -55,12 +54,12 @@ namespace HTTPServer
             if( !ParseRequestLine() )
                 return false;
 
-            //Validate blank line exists:
-            if( !ValidateBlankLine() )
-                return false;
-
             //Load header lines into dictionary:
             if( !LoadHeaderLines() )
+                return false;
+
+            //Validate blank line exists:
+            if( !ValidateBlankLine() )
                 return false;
 
             //If no Host header (HTTP server ver is 1.1), there is a problem:
@@ -122,8 +121,11 @@ namespace HTTPServer
             headerLines = new Dictionary<string,string>();
             try{ //For any line that has a problem with indices [0] and [1] (which must have).
                 string[] line;
-                for(int i=1; i<requestLines.Length-1; i++){
-                    if(requestLines[i]==String.Empty) continue;
+                for(int i=1; i<requestLines.Length; i++){
+                    if(requestLines[i] == String.Empty){
+                        lastHeaderLine = i;
+                        break;
+                    }
                     line = requestLines[i].Split(new String[]{": "}, StringSplitOptions.None); //No ":".
                     headerLines.Add(line[0], line[1]);
                 }
@@ -135,7 +137,7 @@ namespace HTTPServer
 
         private bool ValidateBlankLine() //For GET only requests, the blank line must be the last line (always no content).
         {
-            if(requestLines[requestLines.Length-1] == String.Empty)
+            if(requestLines[lastHeaderLine] == String.Empty)
                 return true;
             else
                 return false;
